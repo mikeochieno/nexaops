@@ -28,6 +28,9 @@ class AppService
         if ($method === 'POST' && ($param === null || $param === 'create')) {
             $data = $this->getPayload();
             if (empty($data['name'])) Response::error('name is required');
+            if (empty($data['api_key'])) {
+                $data['api_key'] = bin2hex(random_bytes(32));
+            }
             $id = $this->app->create($data);
             Response::success(['id' => $id, 'api_key' => $data['api_key']], 'App created');
         }

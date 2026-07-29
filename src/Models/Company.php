@@ -40,4 +40,9 @@ class Company
         $row = $this->db->fetch("SELECT COUNT(*) as cnt FROM apps WHERE company_id = ?", [$companyId]);
         return (int)($row['cnt'] ?? 0);
     }
+
+    public function delete(int $id): int
+    {
+        return $this->db->query("DELETE FROM companies WHERE id = ?", [$id])->rowCount();
+    }
 }

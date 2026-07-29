@@ -26,6 +26,9 @@ $apiBase = $config['base_url'] . '/api';
             <a href="#" class="nav-item active" data-view="dashboard">
                 <i class="fas fa-chart-line"></i><span>Dashboard</span>
             </a>
+            <a href="#" class="nav-item" data-view="companies">
+                <i class="fas fa-building"></i><span>Companies</span>
+            </a>
             <a href="#" class="nav-item" data-view="apps">
                 <i class="fas fa-cubes"></i><span>Applications</span>
             </a>
@@ -162,6 +165,9 @@ $apiBase = $config['base_url'] . '/api';
                 <div class="card full-width">
                     <div class="card-header">
                         <h3><i class="fas fa-cubes"></i> Registered Applications</h3>
+                        <button class="btn btn-sm" onclick="NexaOps.showAppForm()">
+                            <i class="fas fa-plus"></i> Add App
+                        </button>
                     </div>
                     <div class="card-body">
                         <table class="data-table" id="appsTable">
@@ -189,6 +195,7 @@ $apiBase = $config['base_url'] . '/api';
                         <h3><i class="fas fa-scroll"></i> Activity Logs</h3>
                         <div class="filter-bar">
                             <input type="text" id="logSearch" placeholder="Search logs..." class="input-sm">
+                            <select id="logCompanyFilter" class="input-sm"><option value="">All Companies</option></select>
                             <select id="logAppFilter" class="input-sm"><option value="">All Apps</option></select>
                             <select id="logLevelFilter" class="input-sm">
                                 <option value="">All Levels</option>
@@ -210,6 +217,15 @@ $apiBase = $config['base_url'] . '/api';
 
             <!-- ═══ AI Usage View ═══ -->
             <section class="view" id="view-ai">
+                <div class="card full-width" style="margin-bottom:16px">
+                    <div class="card-body">
+                        <div class="filter-bar">
+                            <select id="aiCompanyFilter" class="input-sm" onchange="NexaOps.loadAI()">
+                                <option value="">All Companies</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
                 <div class="stats-grid" id="aiStatsGrid">
                     <div class="stat-card">
                         <div class="stat-icon purple"><i class="fas fa-phone"></i></div>
@@ -258,6 +274,58 @@ $apiBase = $config['base_url'] . '/api';
                 </div>
             </section>
 
+            <!-- ═══ Companies View ═══ -->
+            <section class="view" id="view-companies">
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h3><i class="fas fa-building"></i> Companies</h3>
+                        <button class="btn btn-sm" onclick="NexaOps.showCompanyForm()">
+                            <i class="fas fa-plus"></i> Add Company
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <table class="data-table" id="companiesTable">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Domain</th>
+                                    <th>Industry</th>
+                                    <th>Apps</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Company Detail View ═══ -->
+            <section class="view" id="view-company-detail">
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h3><i class="fas fa-building"></i> <span id="companyDetailName">Company</span></h3>
+                        <button class="btn btn-sm" onclick="NexaOps.backToCompanies()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="card-body" id="companyDetailBody"></div>
+                </div>
+            </section>
+
+            <!-- ═══ App Detail View ═══ -->
+            <section class="view" id="view-app-detail">
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h3><i class="fas fa-cube"></i> <span id="appDetailName">App</span></h3>
+                        <button class="btn btn-sm" onclick="NexaOps.backToApps()">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                    </div>
+                    <div class="card-body" id="appDetailBody"></div>
+                </div>
+            </section>
+
             <!-- ═══ Integrations View ═══ -->
             <section class="view" id="view-integrations">
                 <div class="card full-width">
@@ -297,6 +365,96 @@ logging.info('AI query completed')</code></pre>
             </section>
         </div>
     </main>
+
+    <!-- ── Modals ──────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="modalOverlay" onclick="NexaOps.closeModal()"></div>
+    <div class="modal" id="companyModal">
+        <div class="modal-header">
+            <h3 id="companyModalTitle">Add Company</h3>
+            <button class="modal-close" onclick="NexaOps.closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="companyForm" onsubmit="NexaOps.saveCompany(event)">
+                <input type="hidden" id="companyId">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="companyName" required class="input-full">
+                </div>
+                <div class="form-group">
+                    <label>Domain</label>
+                    <input type="text" id="companyDomain" class="input-full" placeholder="example.com">
+                </div>
+                <div class="form-group">
+                    <label>Industry</label>
+                    <input type="text" id="companyIndustry" class="input-full" placeholder="Real Estate Tech">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="NexaOps.closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="appModal">
+        <div class="modal-header">
+            <h3 id="appModalTitle">Add Application</h3>
+            <button class="modal-close" onclick="NexaOps.closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="appForm" onsubmit="NexaOps.saveApp(event)">
+                <input type="hidden" id="appId">
+                <div class="form-group">
+                    <label>Company</label>
+                    <select id="appCompanyId" required class="input-full"></select>
+                </div>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="appName" required class="input-full">
+                </div>
+                <div class="form-group">
+                    <label>Slug</label>
+                    <input type="text" id="appSlug" required class="input-full" placeholder="my-app">
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="appType" class="input-full">
+                        <option value="web">Web</option>
+                        <option value="mobile">Mobile</option>
+                        <option value="api">API</option>
+                        <option value="ai_service">AI Service</option>
+                        <option value="android">Android</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="appDescription" class="input-full" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Base URL</label>
+                    <input type="url" id="appBaseUrl" class="input-full" placeholder="https://example.com">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn" onclick="NexaOps.closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+        <div class="modal-header">
+            <h3>Confirm</h3>
+            <button class="modal-close" onclick="NexaOps.closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage">Are you sure?</p>
+            <div class="form-actions">
+                <button type="button" class="btn" onclick="NexaOps.closeModal()">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmBtn" onclick="NexaOps.closeModal()">Delete</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const API_BASE = '<?= $apiBase ?>';

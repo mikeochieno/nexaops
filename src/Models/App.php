@@ -23,6 +23,7 @@ class App
                    (SELECT COUNT(*) FROM ai_usage WHERE app_id = a.id) AS ai_calls
             FROM apps a
             LEFT JOIN companies c ON c.id = a.company_id
+            WHERE a.deleted_at IS NULL
             ORDER BY a.name
         ");
     }

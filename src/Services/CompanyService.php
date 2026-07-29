@@ -34,6 +34,17 @@ class CompanyService
             Response::success(['id' => $id], 'Company created');
             return;
         }
+        if ($method === 'PUT' && is_numeric($param)) {
+            $data = json_decode(file_get_contents('php://input'), true) ?: $_POST;
+            $this->company->update((int)$param, $data);
+            Response::success([], 'Company updated');
+            return;
+        }
+        if ($method === 'DELETE' && is_numeric($param)) {
+            $this->company->delete((int)$param);
+            Response::success([], 'Company deleted');
+            return;
+        }
 
         Response::error('Invalid request', 400);
     }
