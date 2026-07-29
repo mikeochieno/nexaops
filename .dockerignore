@@ -1,5 +1,4 @@
 .git
-vendor/
 storage/*.json
 error.log
 *.md
