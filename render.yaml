@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: nexaops
+    runtime: image
+    repo: https://github.com/mikeochieno/nexaops
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: BASE_URL
+        value: https://nexaops.onrender.com
+      - key: APP_API_KEY
+        value: nexaops_dev_key_change_me
+      - key: DB_HOST
+        sync: false
+      - key: DB_NAME
+        value: sys
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_PORT
+        value: "4000"
