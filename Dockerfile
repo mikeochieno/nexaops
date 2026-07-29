@@ -1,8 +1,10 @@
 FROM php:8.4-apache
 
-# Install PHP extensions
-RUN docker-php-ext-install mysqli pdo_mysql && \
-    docker-php-ext-enable mysqli pdo_mysql
+# Install PHP extensions and CA certificates (needed for TiDB TLS)
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
+    docker-php-ext-install mysqli pdo_mysql && \
+    docker-php-ext-enable mysqli pdo_mysql && \
+    rm -rf /var/lib/apt/lists/*
 
 # Enable Apache modules
 RUN a2enmod rewrite

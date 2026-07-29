@@ -19,10 +19,9 @@ class Database
             \PDO::ATTR_EMULATE_PREPARES   => false,
         ];
         if (!empty($cfg['ssl']) && $cfg['ssl'] !== 'false') {
-            if ($cfg['ssl_ca']) {
-                $opts[\PDO::MYSQL_ATTR_SSL_CA] = $cfg['ssl_ca'];
-            } else {
-                $opts[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            $ca = $cfg['ssl_ca'] ?: (openssl_get_cert_locations()['default_cert_file'] ?? '');
+            if ($ca && file_exists($ca)) {
+                $opts[\PDO::MYSQL_ATTR_SSL_CA] = $ca;
             }
         }
         $this->pdo = new \PDO($dsn, $cfg['user'], $cfg['password'], $opts);
