@@ -1,0 +1,7 @@
+.git
+vendor/
+storage/*.json
+error.log
+docker-entrypoint.sh
+*.md
+.DS_Store

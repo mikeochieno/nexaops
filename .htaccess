@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Serve existing files and directories as-is (no rewrite)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Route API calls to api/index.php
+RewriteRule ^api/(.*)$ api/index.php?route=$1 [QSA,L]
+
+# Route everything else to index.php
+RewriteRule ^(.*)$ index.php?route=$1 [QSA,L]

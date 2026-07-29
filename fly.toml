@@ -1,0 +1,21 @@
+app = "nexaops"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[env]
+  APP_API_KEY = "nexaops_prod_key_change_me"
+  BASE_URL = "https://nexaops.fly.dev"
+  DB_HOST = ""
+  DB_NAME = "app_manager"
+  DB_USER = ""
+  DB_PASS = ""
+  DB_PORT = "3306"
