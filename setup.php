@@ -12,16 +12,20 @@ echo "║   NexaOps — App & AI Management Platform Setup  ║\n";
 echo "╚══════════════════════════════════════════════════╝\n\n";
 
 try {
+    $opts = [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION];
+    if (!empty($config['ssl']) && $config['ssl'] !== 'false') {
+        $ca = $config['ssl_ca'] ?: '/etc/ssl/certs/ca-certificates.crt';
+        if (file_exists($ca)) {
+            $opts[PDO::MYSQL_ATTR_SSL_CA] = $ca;
+        }
+    }
     $dsn = "mysql:host={$config['host']};port={$config['port']};charset=utf8mb4";
-    $pdo = new PDO($dsn, $config['user'], $config['password'], [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-    ]);
+    $pdo = new PDO($dsn, $config['user'], $config['password'], $opts);
 
     echo "✓ Connected to MySQL\n";
 
-    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$config['database']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    echo "✓ Database '{$config['database']}' created\n";
     $pdo->exec("USE `{$config['database']}`");
+    echo "✓ Connected to MySQL\n";
 
     // ── Create tables ────────────────────────────────────────
     $statements = [
