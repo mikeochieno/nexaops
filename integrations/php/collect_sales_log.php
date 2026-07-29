@@ -24,7 +24,7 @@ NexaOpsCollector::sendLog($agent_id, $log_action, $log_ip);
 
 class NexaOpsCollector
 {
-    private static string $endpoint = 'https://223f-41-209-3-177.ngrok-free.app/api/collect/log';
+    private static string $endpoint = 'https://nexaops-qwvk.onrender.com/api/collect/log';
     private static string $apiKey   = 'sales_app_key_2026_demo';
 
     public static function sendLog(string $userId, string $action, string $ip = ''): void
