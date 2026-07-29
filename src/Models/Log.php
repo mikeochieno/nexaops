@@ -115,6 +115,7 @@ class Log
                     COUNT(DISTINCT l.action) as unique_actions
              FROM apps a
              LEFT JOIN app_logs l ON l.app_id = a.id AND l.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+             WHERE a.deleted_at IS NULL
              GROUP BY a.id, a.name
              ORDER BY log_count DESC",
             [$days]

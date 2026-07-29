@@ -82,7 +82,7 @@ const NexaOps = (() => {
         const tbody = document.querySelector('#appStatsTable tbody');
         tbody.innerHTML = '';
         (data.app_stats || []).forEach(row => {
-            tbody.innerHTML += `<tr>
+            tbody.innerHTML += `<tr class="clickable" onclick="NexaOps.viewApp(${row.id})">
                 <td>${esc(row.name)}</td>
                 <td>${fmt(row.log_count)}</td>
                 <td>${fmt(row.unique_users)}</td>
@@ -93,7 +93,7 @@ const NexaOps = (() => {
         const actionsDiv = document.getElementById('topActionsList');
         actionsDiv.innerHTML = '';
         (data.top_actions || []).forEach(row => {
-            actionsDiv.innerHTML += `<div class="action-bar">
+            actionsDiv.innerHTML += `<div class="action-bar" style="cursor:pointer" onclick="document.getElementById('logSearch').value='${esc(row.action)}';NexaOps.switchView('logs')">
                 <span class="action-name">${esc(row.action)}</span>
                 <span class="badge badge-type">${esc(row.app_name || '—')}</span>
                 <span class="action-count">${fmt(row.cnt)}</span>
@@ -532,13 +532,13 @@ const NexaOps = (() => {
     document.addEventListener('DOMContentLoaded', init);
 
     return {
-        refresh, syncLogs, searchLogs,
+        refresh, syncLogs, searchLogs, switchView,
         loadRecentLogs: () => api('/logs/recent?limit=30').then(d => renderLogFeed('liveFeed', d?.logs || [])),
         nextPage, prevPage,
         // Companies
         loadCompanies, showCompanyForm, saveCompany, viewCompany, backToCompanies,
         // Apps
-        loadApps, showAppForm, saveApp, viewApp, backToApps,
+        showAppForm, saveApp, viewApp, backToApps,
         // Logs
         loadLogs: () => { logsOffset = 0; populateCompanyFilter('logCompanyFilter', ''); searchLogs(); },
         loadAI,

@@ -71,42 +71,42 @@ $apiBase = $config['base_url'] . '/api';
             <!-- ═══ Dashboard View ═══ -->
             <section class="view active" id="view-dashboard">
                 <div class="stats-grid" id="statsGrid">
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="NexaOps.switchView('apps')" style="cursor:pointer">
                         <div class="stat-icon blue"><i class="fas fa-cubes"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statApps">—</span>
                             <span class="stat-label">Applications</span>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="NexaOps.switchView('companies')" style="cursor:pointer">
                         <div class="stat-icon green"><i class="fas fa-building"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statCompanies">—</span>
                             <span class="stat-label">Companies</span>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="NexaOps.switchView('logs')" style="cursor:pointer">
                         <div class="stat-icon orange"><i class="fas fa-scroll"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statLogs">—</span>
                             <span class="stat-label">Logs (7d)</span>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="NexaOps.switchView('ai')" style="cursor:pointer">
                         <div class="stat-icon purple"><i class="fas fa-brain"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statAICalls">—</span>
                             <span class="stat-label">AI Calls (7d)</span>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="NexaOps.switchView('ai')" style="cursor:pointer">
                         <div class="stat-icon red"><i class="fas fa-coins"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statAICost">—</span>
                             <span class="stat-label">AI Cost (7d)</span>
                         </div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" onclick="NexaOps.switchView('logs')" style="cursor:pointer">
                         <div class="stat-icon teal"><i class="fas fa-users"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statUsers">—</span>
@@ -217,6 +217,15 @@ $apiBase = $config['base_url'] . '/api';
 
             <!-- ═══ AI Usage View ═══ -->
             <section class="view" id="view-ai">
+                <div class="card full-width" style="margin-bottom:12px;border-color:var(--accent-glow)">
+                    <div class="card-body" style="padding:12px 20px;font-size:0.85rem;color:var(--text-dim)">
+                        <i class="fas fa-info-circle" style="color:var(--accent)"></i>
+                        AI Usage tracks LLM API calls (tokens, costs, latency) <strong>across all apps</strong>
+                        — not just "AI apps". Any app that makes AI/LLM calls and reports them here will
+                        appear in these stats. Think of it as a cross-cutting observability layer, separate
+                        from any specific AI application.
+                    </div>
+                </div>
                 <div class="stats-grid" id="aiStatsGrid">
                     <div class="stat-card">
                         <div class="stat-icon purple"><i class="fas fa-phone"></i></div>
