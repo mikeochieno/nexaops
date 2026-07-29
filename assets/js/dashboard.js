@@ -41,8 +41,18 @@ const NexaOps = (() => {
             case 'apps':         loadApps(); break;
             case 'logs':         loadLogs(); break;
             case 'ai':           loadAI(); break;
-            case 'integrations': break;
+            case 'integrations': loadIntegrations(); break;
         }
+    }
+
+    async function loadIntegrations() {
+        const sel = document.getElementById('integrationAppSelect');
+        sel.innerHTML = '<option value="">— Choose an app —</option>';
+        const data = await api('/apps');
+        (data?.apps || []).forEach(a => {
+            sel.innerHTML += `<option value="${a.id}">${esc(a.name)} (${esc(a.company_name || '—')})</option>`;
+        });
+        document.getElementById('integrationDetails').style.display = 'none';
     }
 
     // ── API ──────────────────────────────────────────────────
@@ -468,6 +478,58 @@ const NexaOps = (() => {
             alert(`Sync complete: ${data.synced} logs ingested from ${data.sources} sources.`);
             loadView(currentView);
         }
+    }
+
+    // ── Integrations ────────────────────────────────────────
+    function showIntegration() {
+        const el = document.getElementById('integrationAppSelect');
+        const id = el.value;
+        const details = document.getElementById('integrationDetails');
+        if (!id) { details.style.display = 'none'; return; }
+
+        api('/apps').then(data => {
+            const app = (data?.apps || []).find(a => Number(a.id) === Number(id));
+            if (!app) return;
+            details.style.display = 'block';
+            const key = app.api_key || '—';
+            const endpoint = API_BASE.replace('/api', '');
+            document.getElementById('integrationApiKey').textContent = key;
+            document.getElementById('integrationEndpoint').textContent = endpoint + '/api/collect/log';
+
+            const escCode = (s) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            document.getElementById('integrationCodePhp').innerHTML = escCode(
+`require_once 'integrations/php/NexaOpsClient.php';
+
+$nexa = new NexaOpsClient('${key}');
+$nexa->log('LOGIN', 'User john@example.com logged in');
+$nexa->aiUsage([
+    'model' => 'gpt-4o',
+    'tokens_prompt' => 500,
+    'tokens_completion' => 200,
+    'cost_usd' => 0.008,
+]);`
+            );
+            document.getElementById('integrationCodePy').innerHTML = escCode(
+`import requests
+
+logs = [{"action": "LOGIN", "description": "User john@example.com logged in"}]
+ai = [{"model": "gpt-4o", "tokens_prompt": 500, "tokens_completion": 200, "cost_usd": 0.008}]
+
+requests.post("${endpoint}/api/collect/log",
+    json={"logs": logs},
+    headers={"X-API-Key": "${key}", "Content-Type": "application/json"})
+
+requests.post("${endpoint}/api/collect/ai-usage",
+    json={"usage": ai},
+    headers={"X-API-Key": "${key}", "Content-Type": "application/json"})`
+            );
+            document.getElementById('integrationCodeCurl').innerHTML = escCode(
+`curl -X POST ${endpoint}/api/collect/log \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: ${key}" \\
+  -d '{"logs":[{"action":"DEPLOY","description":"v2.1 deployed"}]}'`
+            );
+        });
     }
 
     // ── Modal Mgmt ──────────────────────────────────────────

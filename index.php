@@ -328,37 +328,41 @@ $apiBase = $config['base_url'] . '/api';
 
             <!-- ═══ Integrations View ═══ -->
             <section class="view" id="view-integrations">
+                <div class="card full-width" style="margin-bottom:12px">
+                    <div class="card-body" style="font-size:0.88rem;line-height:1.6">
+                        <p><strong>How it works:</strong> Each app you create in NexaOps gets a unique <code>api_key</code>.
+                        Your app sends logs and AI usage data to NexaOps via simple HTTP POST requests using that key.
+                        NexaOps links the data to the correct app automatically based on the key.</p>
+                    </div>
+                </div>
                 <div class="card full-width">
                     <div class="card-header">
                         <h3><i class="fas fa-plug"></i> Integration Guide</h3>
                     </div>
                     <div class="card-body">
-                        <div class="integration-guide">
-                            <h4>PHP Integration (Drop-in)</h4>
-                            <pre class="code-block"><code>require_once 'NexaOpsClient.php';
-
-$nexa = new NexaOpsClient('your_api_key');
-$nexa->log('LOGIN', 'User john@example.com logged in');
-$nexa->aiUsage([
-    'model' => 'gpt-4o',
-    'tokens_prompt' => 500,
-    'tokens_completion' => 200,
-    'cost_usd' => 0.008,
-]);</code></pre>
-
-                            <h4>Python Integration</h4>
-                            <pre class="code-block"><code>from nexaops_agent import NexaOpsHandler
-import logging
-
-handler = NexaOpsHandler(api_key='your_key', app_name='ai_app')
-logging.getLogger().addHandler(handler)
-logging.info('AI query completed')</code></pre>
-
-                            <h4>REST API Push</h4>
-                            <pre class="code-block"><code>curl -X POST http://localhost/app_manager/api/collect/log \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your_api_key" \
-  -d '{"logs":[{"action":"DEPLOY","description":"v2.1 deployed"}]}'</code></pre>
+                        <div class="filter-bar" style="margin-bottom:16px">
+                            <label style="font-size:0.85rem;color:var(--text-dim)">Select an app:</label>
+                            <select id="integrationAppSelect" class="input-sm" onchange="NexaOps.showIntegration()">
+                                <option value="">— Choose an app —</option>
+                            </select>
+                        </div>
+                        <div id="integrationDetails" style="display:none">
+                            <div class="stats-grid" style="grid-template-columns:1fr 1fr;margin-bottom:16px">
+                                <div class="stat-card" style="padding:12px 16px">
+                                    <span class="stat-label">API Key</span>
+                                    <span class="stat-value" id="integrationApiKey" style="font-size:0.9rem;word-break:break-all;font-family:monospace">—</span>
+                                </div>
+                                <div class="stat-card" style="padding:12px 16px">
+                                    <span class="stat-label">Endpoint</span>
+                                    <span class="stat-value" id="integrationEndpoint" style="font-size:0.9rem;word-break:break-all;font-family:monospace">—</span>
+                                </div>
+                            </div>
+                            <h4 style="color:var(--accent);margin-bottom:8px">PHP</h4>
+                            <pre class="code-block" id="integrationCodePhp"></pre>
+                            <h4 style="color:var(--accent);margin-bottom:8px">Python</h4>
+                            <pre class="code-block" id="integrationCodePy"></pre>
+                            <h4 style="color:var(--accent);margin-bottom:8px">cURL</h4>
+                            <pre class="code-block" id="integrationCodeCurl"></pre>
                         </div>
                     </div>
                 </div>
