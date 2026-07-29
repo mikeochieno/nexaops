@@ -19,8 +19,8 @@ class Database
             \PDO::ATTR_EMULATE_PREPARES   => false,
         ];
         if (!empty($cfg['ssl']) && $cfg['ssl'] !== 'false') {
-            $ca = $cfg['ssl_ca'] ?: (openssl_get_cert_locations()['default_cert_file'] ?? '');
-            if ($ca && file_exists($ca)) {
+            $ca = $cfg['ssl_ca'] ?: '/etc/ssl/certs/ca-certificates.crt';
+            if (file_exists($ca)) {
                 $opts[\PDO::MYSQL_ATTR_SSL_CA] = $ca;
             }
         }
