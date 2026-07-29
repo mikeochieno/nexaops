@@ -217,15 +217,6 @@ $apiBase = $config['base_url'] . '/api';
 
             <!-- ═══ AI Usage View ═══ -->
             <section class="view" id="view-ai">
-                <div class="card full-width" style="margin-bottom:16px">
-                    <div class="card-body">
-                        <div class="filter-bar">
-                            <select id="aiCompanyFilter" class="input-sm" onchange="NexaOps.loadAI()">
-                                <option value="">All Companies</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
                 <div class="stats-grid" id="aiStatsGrid">
                     <div class="stat-card">
                         <div class="stat-icon purple"><i class="fas fa-phone"></i></div>

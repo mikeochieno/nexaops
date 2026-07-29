@@ -71,6 +71,10 @@ class Log
             $params[] = $search;
             $params[] = $search;
         }
+        if (!empty($filters['company_id'])) {
+            $where[] = 'a.company_id = ?';
+            $params[] = $filters['company_id'];
+        }
         if (!empty($filters['date_from'])) {
             $where[] = 'l.created_at >= ?';
             $params[] = $filters['date_from'];

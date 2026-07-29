@@ -353,17 +353,17 @@ const NexaOps = (() => {
             </div>
         `;
 
-        const logs = await api(`/apps/${id}/logs?limit=50`);
-        renderLogFeed('appDetailLogFeed', logs?.logs || []);
+        const logsData = await api(`/logs/search?limit=50&app_id=${id}`);
+        renderLogFeed('appDetailLogFeed', logsData?.logs || []);
 
-        const ai = await api(`/apps/${id}/ai?days=7`);
+        const ai = await api(`/ai/stats?app_id=${id}&days=7`);
         const aidiv = document.getElementById('appDetailAI');
         if (ai?.totals) {
             aidiv.innerHTML = `
                 <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
-                    <div class="stat-card"><span class="stat-value">${fmt(ai.totals.total_calls || 0)}</span><span class="stat-label">Calls</span></div>
-                    <div class="stat-card"><span class="stat-value">${fmt(ai.totals.total_tokens || 0)}</span><span class="stat-label">Tokens</span></div>
-                    <div class="stat-card"><span class="stat-value">$${(ai.totals.total_cost || 0).toFixed(4)}</span><span class="stat-label">Cost</span></div>
+                    <div class="stat-card"><span class="stat-value">${fmt(Number(ai.totals.total_calls) || 0)}</span><span class="stat-label">Calls</span></div>
+                    <div class="stat-card"><span class="stat-value">${fmt(Number(ai.totals.total_tokens) || 0)}</span><span class="stat-label">Tokens</span></div>
+                    <div class="stat-card"><span class="stat-value">$${(Number(ai.totals.total_cost) || 0).toFixed(4)}</span><span class="stat-label">Cost</span></div>
                 </div>`;
         } else {
             aidiv.innerHTML = '<p class="text-dim">No AI usage yet.</p>';
@@ -412,23 +412,14 @@ const NexaOps = (() => {
 
     // ── AI Usage ─────────────────────────────────────────────
     async function loadAI() {
-        populateCompanyFilter('aiCompanyFilter', '');
-        await loadAIData();
-    }
-
-    async function loadAIData() {
-        const companyId = document.getElementById('aiCompanyFilter')?.value || '';
-        let params = new URLSearchParams({ days: 7 });
-        if (companyId) params.set('company_id', companyId);
-
-        const data = await api('/ai/global?' + params.toString());
+        const data = await api('/ai/global?days=7');
         if (!data) return;
 
         const t = data.totals || {};
         setText('aiStatCalls',   fmt(t.total_calls || 0));
         setText('aiStatTokens',  fmt(t.total_tokens || 0));
-        setText('aiStatCost',    '$' + (t.total_cost || 0).toFixed(4));
-        setText('aiStatLatency', Math.round(t.avg_latency || 0) + 'ms');
+        setText('aiStatCost', '$' + (Number(t.total_cost) || 0).toFixed(4));
+        setText('aiStatLatency', Math.round(Number(t.avg_latency) || 0) + 'ms');
 
         const provDiv = document.getElementById('aiByProvider');
         provDiv.innerHTML = '';
@@ -515,7 +506,7 @@ const NexaOps = (() => {
                 : log.level === 'warning' ? 'badge-warning' : 'badge-info';
             el.innerHTML += `<div class="log-line">
                 <span class="log-time">${esc(log.created_at || '')}</span>
-                <span class="log-app">${esc(log.app_name || 'system')}</span>
+                <span class="log-app" ${log.app_id ? `style="cursor:pointer" onclick="NexaOps.viewApp(${log.app_id})"` : ''}>${esc(log.app_name || 'system')}</span>
                 <span class="badge ${lc}">${esc(log.level || 'info')}</span>
                 <span class="log-action">${esc(log.action || '')}</span>
                 <span class="log-msg">${esc(log.description || log.user_id || '')}</span>

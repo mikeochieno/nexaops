@@ -46,14 +46,19 @@ class AIUsage
 
         $totals = $this->db->fetch(
             "SELECT COUNT(*) as total_calls,
-                    SUM(tokens_used) as total_tokens,
-                    SUM(cost_usd) as total_cost,
-                    AVG(latency_ms) as avg_latency,
-                    SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful
+                    COALESCE(SUM(tokens_used),0) as total_tokens,
+                    COALESCE(SUM(cost_usd),0) as total_cost,
+                    COALESCE(AVG(latency_ms),0) as avg_latency,
+                    COALESCE(SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END),0) as successful
              FROM ai_usage
              WHERE app_id = ? AND created_at >= ?",
             [$appId, $from]
         );
+        $totals['total_calls'] = (int)$totals['total_calls'];
+        $totals['total_tokens'] = (float)$totals['total_tokens'];
+        $totals['total_cost'] = (float)$totals['total_cost'];
+        $totals['avg_latency'] = (float)$totals['avg_latency'];
+        $totals['successful'] = (int)$totals['successful'];
 
         $byProvider = $this->db->fetchAll(
             "SELECT provider, COUNT(*) as calls, SUM(tokens_used) as tokens, SUM(cost_usd) as cost
@@ -93,12 +98,16 @@ class AIUsage
 
         $totals = $this->db->fetch(
             "SELECT COUNT(*) as total_calls,
-                    SUM(tokens_used) as total_tokens,
-                    SUM(cost_usd) as total_cost,
-                    AVG(latency_ms) as avg_latency
+                    COALESCE(SUM(tokens_used),0) as total_tokens,
+                    COALESCE(SUM(cost_usd),0) as total_cost,
+                    COALESCE(AVG(latency_ms),0) as avg_latency
              FROM ai_usage WHERE created_at >= ?",
             [$from]
         );
+        $totals['total_calls'] = (int)$totals['total_calls'];
+        $totals['total_tokens'] = (float)$totals['total_tokens'];
+        $totals['total_cost'] = (float)$totals['total_cost'];
+        $totals['avg_latency'] = (float)$totals['avg_latency'];
 
         $byApp = $this->db->fetchAll(
             "SELECT a.name as app_name, u.app_id,
