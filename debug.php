@@ -1,9 +1,60 @@
 <?php
 header('Content-Type: text/plain');
-echo "openssl_get_cert_locations: " . print_r(openssl_get_cert_locations(), true) . "\n";
-echo "CA file exists: " . (file_exists('/etc/ssl/certs/ca-certificates.crt') ? 'YES' : 'NO') . "\n";
-echo "CA alt path exists: " . (file_exists('/etc/ssl/certs/ca-bundle.crt') ? 'YES' : 'NO') . "\n";
-echo "apt ca path exists: " . (file_exists('/usr/share/ca-certificates/mozilla/CA_Root.crt') ? 'YES' : 'NO') . "\n";
-echo "ls /etc/ssl/certs/: " . shell_exec('ls /etc/ssl/certs/ 2>&1') . "\n";
-echo "ls /etc/ssl/: " . shell_exec('ls /etc/ssl/ 2>&1') . "\n";
-echo "dpkg -l ca-certificates: " . shell_exec('dpkg -l ca-certificates 2>&1') . "\n";
+$cfg = require __DIR__ . '/config/database.php';
+$host = $cfg['host'];
+$port = $cfg['port'];
+$user = $cfg['user'];
+$pass = $cfg['password'];
+$name = $cfg['database'];
+$ca = '/etc/ssl/certs/ca-certificates.crt';
+echo "CA exists: " . (file_exists($ca) ? 'YES' : 'NO') . "\n";
+echo "CA size: " . filesize($ca) . "\n\n";
+
+// Test 1: PDO with SSL_CA
+echo "--- Test 1: PDO with SSL_CA ---\n";
+try {
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=sys;charset=utf8mb4", $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::MYSQL_ATTR_SSL_CA => $ca,
+    ]);
+    echo "SUCCESS\n";
+    $pdo = null;
+} catch (Exception $e) {
+    echo "FAIL: " . $e->getMessage() . "\n";
+}
+
+// Test 2: PDO with SSL_CA + SSL_VERIFY
+echo "\n--- Test 2: PDO with SSL_CA + SSL_VERIFY ---\n";
+try {
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=sys;charset=utf8mb4", $user, $pass, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::MYSQL_ATTR_SSL_CA => $ca,
+        PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => true,
+    ]);
+    echo "SUCCESS\n";
+    $pdo = null;
+} catch (Exception $e) {
+    echo "FAIL: " . $e->getMessage() . "\n";
+}
+
+// Test 3: mysqli with SSL
+echo "\n--- Test 3: mysqli with ssl_set ---\n";
+try {
+    $mysqli = new mysqli();
+    $mysqli->ssl_set(null, null, $ca, null, null);
+    $mysqli->real_connect($host, $user, $pass, 'sys', $port, null, MYSQLI_CLIENT_SSL);
+    echo "SUCCESS\n";
+    $mysqli->close();
+} catch (Exception $e) {
+    echo "FAIL: " . $e->getMessage() . "\n";
+}
+
+// Test 4: mysqli without SSL
+echo "\n--- Test 4: mysqli without SSL ---\n";
+try {
+    $mysqli = new mysqli($host, $user, $pass, 'sys', $port);
+    echo "SUCCESS\n";
+    $mysqli->close();
+} catch (Exception $e) {
+    echo "FAIL: " . $e->getMessage() . "\n";
+}
