@@ -140,6 +140,7 @@ class Log
      */
     public function topActions(int $limit = 15): array
     {
+        $limit = (int) $limit;
         return $this->db->fetchAll(
             "SELECT l.action, a.name as app_name, COUNT(*) as cnt
              FROM app_logs l
@@ -147,8 +148,7 @@ class Log
              WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
              GROUP BY l.action, a.name
              ORDER BY cnt DESC
-             LIMIT ?",
-            [$limit]
+             LIMIT {$limit}"
         );
     }
 
@@ -157,13 +157,13 @@ class Log
      */
     public function recent(int $limit = 50): array
     {
+        $limit = (int) $limit;
         return $this->db->fetchAll(
             "SELECT l.*, a.name AS app_name
              FROM app_logs l
              LEFT JOIN apps a ON a.id = l.app_id
              ORDER BY l.created_at DESC
-             LIMIT ?",
-            [$limit]
+             LIMIT {$limit}"
         );
     }
 }
