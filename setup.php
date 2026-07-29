@@ -25,7 +25,7 @@ try {
     echo "✓ Connected to MySQL\n";
 
     $pdo->exec("USE `{$config['database']}`");
-    echo "✓ Connected to MySQL\n";
+    echo "✓ Connected to MySQL\n\n";
 
     // ── Create tables ────────────────────────────────────────
     $statements = [
