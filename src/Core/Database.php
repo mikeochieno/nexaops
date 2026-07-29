@@ -18,11 +18,11 @@ class Database
             \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
             \PDO::ATTR_EMULATE_PREPARES   => false,
         ];
-        if (!empty($cfg['ssl_ca'])) {
-            $opts[\PDO::MYSQL_ATTR_SSL_CA] = $cfg['ssl_ca'];
-        }
-        if (!empty($cfg['ssl_verify'])) {
-            $opts[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+        if (!empty($cfg['ssl']) && $cfg['ssl'] !== 'false') {
+            $opts[\PDO::MYSQL_ATTR_SSL_CA] = $cfg['ssl_ca'] ?: '/etc/ssl/certs/ca-certificates.crt';
+            if (!empty($cfg['ssl_verify'])) {
+                $opts[\PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = true;
+            }
         }
         $this->pdo = new \PDO($dsn, $cfg['user'], $cfg['password'], $opts);
     }
