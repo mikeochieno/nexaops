@@ -12,6 +12,16 @@ if ($base === 'http://localhost' && !empty($_SERVER['HTTP_HOST'])) {
     $base = $scheme . '://' . $_SERVER['HTTP_HOST'];
 }
 $apiBase = $base . '/api';
+/**
+ * Cache-busting asset URLs: append the file's mtime so browsers never
+ * serve stale JS/CSS after a deploy (Render sends no cache headers).
+ */
+function assetUrl(string $path): string
+{
+    $file = __DIR__ . '/' . $path;
+    $v = file_exists($file) ? filemtime($file) : '0';
+    return $path . '?v=' . $v;
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -19,9 +29,9 @@ $apiBase = $base . '/api';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($config['name']) ?></title>
-    <link rel="stylesheet" href="assets/css/dashboard.css">
-    <link rel="stylesheet" href="assets/vendor/fontawesome/all.min.css">
-    <script defer src="assets/vendor/chartjs/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="<?= assetUrl('assets/css/dashboard.css') ?>">
+    <link rel="stylesheet" href="<?= assetUrl('assets/vendor/fontawesome/all.min.css') ?>">
+    <script defer src="<?= assetUrl('assets/vendor/chartjs/chart.umd.min.js') ?>"></script>
 </head>
 <body>
     <!-- ── Sidebar ─────────────────────────────────────────────── -->
@@ -536,6 +546,6 @@ $apiBase = $base . '/api';
         const API_BASE = '<?= $apiBase ?>';
         const API_KEY  = '<?= $config['api_key'] ?>';
     </script>
-    <script src="assets/js/dashboard.js"></script>
+    <script src="<?= assetUrl('assets/js/dashboard.js') ?>"></script>
 </body>
 </html>
