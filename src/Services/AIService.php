@@ -30,11 +30,26 @@ class AIService
         }
 
         if ($param === 'global' || $param === 'stats') {
-            $days = (int)($_GET['days'] ?? 7);
-            Response::success($this->ai->globalStats($days));
+            $days = max(1, min(365, (int)($_GET['days'] ?? 7)));
+            $companyId = (int)($_GET['company_id'] ?? 0);
+            $appId     = (int)($_GET['app_id'] ?? 0);
+            $from = $this->cleanDate($_GET['from'] ?? null);
+            $to   = $this->cleanDate($_GET['to'] ?? null);
+            Response::success(array_merge(
+                ['days' => $days, 'today' => date('Y-m-d'),
+                 'filters' => ['company_id' => $companyId, 'app_id' => $appId, 'from' => $from, 'to' => $to]],
+                $this->ai->globalStats($days, $companyId, $appId, $from, $to)
+            ));
             return;
         }
 
         Response::error('Invalid AI endpoint', 400);
+    }
+
+    private function cleanDate(?string $v): ?string
+    {
+        $v = trim((string)$v);
+        if ($v === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $v)) return null;
+        return $v;
     }
 }

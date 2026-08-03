@@ -258,7 +258,7 @@ body {
     font-size: 0.82rem;
 }
 .input-sm:focus { outline: none; border-color: var(--accent); }
-.filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 24px; }
 
 /* ── Log Feed ────────────────────────────────────────────── */
 .log-feed {
@@ -322,6 +322,38 @@ body {
 
 /* ── Chart Area ──────────────────────────────────────────── */
 .chart-area { min-height: 200px; }
+.chart-box {
+    position: relative;
+    height: 240px;
+    margin-bottom: 16px;
+}
+.chart-box canvas { width: 100% !important; }
+
+/* ── Range selector ──────────────────────────────────────── */
+.range-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.range-label {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 4px;
+}
+.range-btn {
+    min-width: 44px;
+    text-align: center;
+    transition: all 0.15s;
+}
+.range-btn.active {
+    background: var(--accent);
+    color: white;
+}
 
 /* ── Modal ──────────────────────────────────────────────── */
 .modal-overlay {

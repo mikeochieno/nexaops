@@ -4,7 +4,14 @@
  * Dashboard entry point.
  */
 $config = require __DIR__ . '/config/app.php';
-$apiBase = $config['base_url'] . '/api';
+$base = $config['base_url'];
+// If no explicit BASE_URL env is set, derive the API host from the current
+// request so the dashboard works under any local vhost (e.g. nexaops.local).
+if ($base === 'http://localhost' && !empty($_SERVER['HTTP_HOST'])) {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $base = $scheme . '://' . $_SERVER['HTTP_HOST'];
+}
+$apiBase = $base . '/api';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -14,6 +21,7 @@ $apiBase = $config['base_url'] . '/api';
     <title><?= htmlspecialchars($config['name']) ?></title>
     <link rel="stylesheet" href="assets/css/dashboard.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
     <!-- ── Sidebar ─────────────────────────────────────────────── -->
@@ -70,7 +78,30 @@ $apiBase = $config['base_url'] . '/api';
         <div class="content-area">
             <!-- ═══ Dashboard View ═══ -->
             <section class="view active" id="view-dashboard">
-                <div class="stats-grid" id="statsGrid">
+            <!-- Time range selector -->
+            <div class="range-bar">
+                <span class="range-label"><i class="fas fa-clock"></i> Time Range:</span>
+                <button class="btn btn-xs range-btn active" data-days="7">7D</button>
+                <button class="btn btn-xs range-btn" data-days="30">30D</button>
+                <button class="btn btn-xs range-btn" data-days="90">90D</button>
+            </div>
+            <!-- Filter bar -->
+            <div class="filter-bar">
+                <span class="range-label"><i class="fas fa-filter"></i> Filters:</span>
+                <select id="dashCompanyFilter" class="input-sm" onchange="NexaOps.onCompanyChange('dash')">
+                    <option value="">All Companies</option>
+                </select>
+                <select id="dashAppFilter" class="input-sm"><option value="">All Apps</option></select>
+                <input type="date" id="dashDateFrom" class="input-sm" title="From date">
+                <input type="date" id="dashDateTo" class="input-sm" title="To date">
+                <button class="btn btn-xs" onclick="NexaOps.applyFilters('dash')">
+                    <i class="fas fa-check"></i> Apply
+                </button>
+                <button class="btn btn-xs" onclick="NexaOps.clearFilters('dash')">
+                    <i class="fas fa-times"></i> Clear
+                </button>
+            </div>
+            <div class="stats-grid" id="statsGrid">
                     <div class="stat-card" onclick="NexaOps.switchView('apps')" style="cursor:pointer">
                         <div class="stat-icon blue"><i class="fas fa-cubes"></i></div>
                         <div class="stat-body">
@@ -89,21 +120,21 @@ $apiBase = $config['base_url'] . '/api';
                         <div class="stat-icon orange"><i class="fas fa-scroll"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statLogs">—</span>
-                            <span class="stat-label">Logs (7d)</span>
+                            <span class="stat-label" id="statLogsLabel">Logs (7d)</span>
                         </div>
                     </div>
                     <div class="stat-card" onclick="NexaOps.switchView('ai')" style="cursor:pointer">
                         <div class="stat-icon purple"><i class="fas fa-brain"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statAICalls">—</span>
-                            <span class="stat-label">AI Calls (7d)</span>
+                            <span class="stat-label" id="statAICallsLabel">AI Calls (7d)</span>
                         </div>
                     </div>
                     <div class="stat-card" onclick="NexaOps.switchView('ai')" style="cursor:pointer">
                         <div class="stat-icon red"><i class="fas fa-coins"></i></div>
                         <div class="stat-body">
                             <span class="stat-value" id="statAICost">—</span>
-                            <span class="stat-label">AI Cost (7d)</span>
+                            <span class="stat-label" id="statAICostLabel">AI Cost (7d)</span>
                         </div>
                     </div>
                     <div class="stat-card" onclick="NexaOps.switchView('logs')" style="cursor:pointer">
@@ -120,9 +151,10 @@ $apiBase = $config['base_url'] . '/api';
                     <!-- App Stats Table -->
                     <div class="card">
                         <div class="card-header">
-                            <h3><i class="fas fa-chart-bar"></i> App Activity (7d)</h3>
+                            <h3><i class="fas fa-chart-bar"></i> App Activity <span id="appActivityTitle">(7d)</span></h3>
                         </div>
                         <div class="card-body">
+                            <div class="chart-box"><canvas id="appActivityChart"></canvas></div>
                             <table class="data-table" id="appStatsTable">
                                 <thead>
                                     <tr>
@@ -140,11 +172,22 @@ $apiBase = $config['base_url'] . '/api';
                     <!-- Top Actions -->
                     <div class="card">
                         <div class="card-header">
-                            <h3><i class="fas fa-fire"></i> Top Actions (7d)</h3>
+                            <h3><i class="fas fa-fire"></i> Top Actions <span id="topActionsTitle">(7d)</span></h3>
                         </div>
                         <div class="card-body">
+                            <div class="chart-box"><canvas id="topActionsChart"></canvas></div>
                             <div id="topActionsList"></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Daily Activity Chart -->
+                <div class="card full-width">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-line"></i> Daily Activity <span id="dailyLogsTitle">(7d)</span></h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-box"><canvas id="dailyLogsChart"></canvas></div>
                     </div>
                 </div>
 
@@ -226,6 +269,29 @@ $apiBase = $config['base_url'] . '/api';
                         from any specific AI application.
                     </div>
                 </div>
+                <!-- Time range selector -->
+                <div class="range-bar">
+                    <span class="range-label"><i class="fas fa-clock"></i> Time Range:</span>
+                    <button class="btn btn-xs range-btn active" data-days="7">7D</button>
+                    <button class="btn btn-xs range-btn" data-days="30">30D</button>
+                    <button class="btn btn-xs range-btn" data-days="90">90D</button>
+                </div>
+                <!-- Filter bar -->
+                <div class="filter-bar">
+                    <span class="range-label"><i class="fas fa-filter"></i> Filters:</span>
+                    <select id="aiCompanyFilter" class="input-sm" onchange="NexaOps.onCompanyChange('ai')">
+                        <option value="">All Companies</option>
+                    </select>
+                    <select id="aiAppFilter" class="input-sm"><option value="">All Apps</option></select>
+                    <input type="date" id="aiDateFrom" class="input-sm" title="From date">
+                    <input type="date" id="aiDateTo" class="input-sm" title="To date">
+                    <button class="btn btn-xs" onclick="NexaOps.applyFilters('ai')">
+                        <i class="fas fa-check"></i> Apply
+                    </button>
+                    <button class="btn btn-xs" onclick="NexaOps.clearFilters('ai')">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
                 <div class="stats-grid" id="aiStatsGrid">
                     <div class="stat-card">
                         <div class="stat-icon purple"><i class="fas fa-phone"></i></div>
@@ -260,17 +326,23 @@ $apiBase = $config['base_url'] . '/api';
                 <div class="dashboard-grid">
                     <div class="card">
                         <div class="card-header"><h3><i class="fas fa-server"></i> By Provider</h3></div>
-                        <div class="card-body"><div id="aiByProvider"></div></div>
+                        <div class="card-body">
+                            <div class="chart-box"><canvas id="aiProviderChart"></canvas></div>
+                            <div id="aiByProvider"></div>
+                        </div>
                     </div>
                     <div class="card">
                         <div class="card-header"><h3><i class="fas fa-cube"></i> By App</h3></div>
-                        <div class="card-body"><div id="aiByApp"></div></div>
+                        <div class="card-body">
+                            <div class="chart-box"><canvas id="aiAppChart"></canvas></div>
+                            <div id="aiByApp"></div>
+                        </div>
                     </div>
                 </div>
 
                 <div class="card full-width">
-                    <div class="card-header"><h3><i class="fas fa-chart-area"></i> Daily AI Usage (7d)</h3></div>
-                    <div class="card-body"><div id="aiDailyChart" class="chart-area"></div></div>
+                    <div class="card-header"><h3><i class="fas fa-chart-area"></i> Daily AI Usage <span id="aiDailyTitle">(7d)</span></h3></div>
+                    <div class="card-body"><div class="chart-box"><canvas id="aiDailyChart"></canvas></div></div>
                 </div>
             </section>
 

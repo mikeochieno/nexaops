@@ -1,10 +1,18 @@
 const NexaOps = (() => {
     let currentView = 'dashboard';
     let logsOffset  = 0;
+    let days = 7;
+    const charts = {};
+    const CHART_TEXT   = '#8b8fa3';
+    const CHART_GRID   = 'rgba(42,46,62,0.6)';
+    const CHART_COLORS = ['#6366f1', '#3b82f6', '#a855f7', '#14b8a6', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899'];
+    const TOOLTIP     = { backgroundColor: '#1a1d27', borderColor: '#2a2e3e', borderWidth: 1, titleColor: '#e4e6f0', bodyColor: '#e4e6f0' };
 
     function init() {
         setupNav();
-        loadDashboard();
+        initFilters().then(() => {
+            loadDashboard();
+        });
     }
 
     // ── Navigation ───────────────────────────────────────────
@@ -16,6 +24,269 @@ const NexaOps = (() => {
                 if (!view) return;
                 switchView(view);
             });
+        });
+        document.querySelectorAll('.range-btn').forEach(btn => {
+            btn.addEventListener('click', () => setRange(parseInt(btn.dataset.days, 10)));
+        });
+    }
+
+    function setRange(d) {
+        days = d;
+        document.querySelectorAll('.range-btn').forEach(b => {
+            b.classList.toggle('active', parseInt(b.dataset.days, 10) === d);
+        });
+        loadView(currentView);
+    }
+
+    // ── Filters ───────────────────────────────────────────────
+    let companyOptions = [];
+    let appOptions = [];
+
+    async function loadFilterOptions() {
+        const companies = await api('/companies');
+        companyOptions = companies?.companies || [];
+        const apps = await api('/apps');
+        appOptions = apps?.apps || [];
+    }
+
+    function fillCompanySelect(prefix) {
+        const sel = document.getElementById(prefix + 'CompanyFilter');
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">All Companies</option>';
+        companyOptions.forEach(c => {
+            sel.innerHTML += `<option value="${c.id}">${esc(c.name)}</option>`;
+        });
+        sel.value = prev;
+    }
+
+    function fillAppSelect(prefix) {
+        const sel = document.getElementById(prefix + 'AppFilter');
+        if (!sel) return;
+        const companySel = document.getElementById(prefix + 'CompanyFilter');
+        const companyId = companySel ? companySel.value : '';
+        const prev = sel.value;
+        const apps = companyId ? appOptions.filter(a => String(a.company_id) === String(companyId)) : appOptions;
+        sel.innerHTML = '<option value="">All Apps</option>';
+        apps.forEach(a => {
+            sel.innerHTML += `<option value="${a.id}">${esc(a.name)}</option>`;
+        });
+        sel.value = prev;
+    }
+
+    async function initFilters() {
+        await loadFilterOptions();
+        fillCompanySelect('dash');
+        fillAppSelect('dash');
+        fillCompanySelect('ai');
+        fillAppSelect('ai');
+    }
+
+    function onCompanyChange(prefix) {
+        fillAppSelect(prefix);
+    }
+
+    function applyFilters(prefix) {
+        const from = document.getElementById(prefix + 'DateFrom').value;
+        const to = document.getElementById(prefix + 'DateTo').value;
+        if (from && to && from > to) {
+            alert('From date must be before To date');
+            return;
+        }
+        loadView(currentView);
+    }
+
+    function clearFilters(prefix) {
+        document.getElementById(prefix + 'CompanyFilter').value = '';
+        document.getElementById(prefix + 'AppFilter').value = '';
+        document.getElementById(prefix + 'DateFrom').value = '';
+        document.getElementById(prefix + 'DateTo').value = '';
+        loadView(currentView);
+    }
+
+    function filterQueryString(prefix) {
+        const parts = [];
+        const company = document.getElementById(prefix + 'CompanyFilter').value;
+        const app = document.getElementById(prefix + 'AppFilter').value;
+        const from = document.getElementById(prefix + 'DateFrom').value;
+        const to = document.getElementById(prefix + 'DateTo').value;
+        if (company) parts.push(`company_id=${encodeURIComponent(company)}`);
+        if (app) parts.push(`app_id=${encodeURIComponent(app)}`);
+        if (from) parts.push(`from=${encodeURIComponent(from)}`);
+        if (to) parts.push(`to=${encodeURIComponent(to)}`);
+        return parts.join('&');
+    }
+
+    function rangeLabel(data) {
+        const flt = data.filters || {};
+        if (flt.from && flt.to) return `(${flt.from.slice(5)} → ${flt.to.slice(5)})`;
+        return `(${data.days || days}d)`;
+    }
+
+    // ── Chart helpers ──────────────────────────────────────────
+    function makeChart(id, config) {
+        const el = document.getElementById(id);
+        if (!el || typeof Chart === 'undefined') return null;
+        if (charts[id]) { charts[id].destroy(); charts[id] = null; }
+        charts[id] = new Chart(el, config);
+        return charts[id];
+    }
+
+    function baseChartOptions(extra = {}, showLegend = false) {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: showLegend, labels: { color: CHART_TEXT, boxWidth: 12, boxHeight: 12 } },
+                tooltip: TOOLTIP,
+            },
+            scales: {
+                x: { ticks: { color: CHART_TEXT, maxRotation: 45, autoSkip: true }, grid: { color: CHART_GRID } },
+                y: { beginAtZero: true, ticks: { color: CHART_TEXT, precision: 0 }, grid: { color: CHART_GRID } },
+            },
+            ...extra,
+        };
+    }
+
+    function dateKey(d) {
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${m}-${day}`;
+    }
+
+    function fillDaily(daily, totalDays, today, valueKey = 'cnt', from = null, to = null) {
+        const map = {};
+        (daily || []).forEach(d => { map[String(d.day)] = Number(d[valueKey] || 0); });
+        const labels = [], values = [];
+        let start, end;
+        if (from && to) {
+            start = new Date(from + 'T00:00:00');
+            end = new Date(to + 'T00:00:00');
+        } else {
+            end = new Date(today + 'T00:00:00');
+            start = new Date(end);
+            start.setDate(end.getDate() - (totalDays - 1));
+        }
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const key = dateKey(d);
+            labels.push(key.slice(5));
+            values.push(map[key] || 0);
+        }
+        return { labels, values };
+    }
+
+    function renderDashboardCharts(data) {
+        const appStats = data.app_stats || [];
+        makeChart('appActivityChart', {
+            type: 'bar',
+            data: {
+                labels: appStats.map(r => r.name || '—'),
+                datasets: [{
+                    label: 'Logs',
+                    data: appStats.map(r => Number(r.log_count) || 0),
+                    backgroundColor: appStats.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+                    borderRadius: 4,
+                    maxBarThickness: 30,
+                }],
+            },
+            options: baseChartOptions(),
+        });
+
+        const actions = data.top_actions || [];
+        makeChart('topActionsChart', {
+            type: 'bar',
+            data: {
+                labels: actions.map(r => r.action),
+                datasets: [{
+                    label: 'Count',
+                    data: actions.map(r => Number(r.cnt) || 0),
+                    backgroundColor: '#f59e0b',
+                    borderRadius: 4,
+                    maxBarThickness: 16,
+                }],
+            },
+            options: baseChartOptions({ indexAxis: 'y' }),
+        });
+
+        const flt = data.filters || {};
+        const daily = fillDaily(data.logs_daily || [], data.days || days, data.today, 'cnt', flt.from, flt.to);
+        makeChart('dailyLogsChart', {
+            type: 'line',
+            data: {
+                labels: daily.labels,
+                datasets: [{
+                    label: 'Logs',
+                    data: daily.values,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99,102,241,0.15)',
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2,
+                    pointBackgroundColor: '#6366f1',
+                }],
+            },
+            options: baseChartOptions(),
+        });
+    }
+
+    function renderAICharts(data) {
+        const byProvider = data.by_provider || [];
+        makeChart('aiProviderChart', {
+            type: 'doughnut',
+            data: {
+                labels: byProvider.map(r => r.provider),
+                datasets: [{
+                    data: byProvider.map(r => Number(r.calls) || 0),
+                    backgroundColor: byProvider.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: CHART_TEXT, boxWidth: 12, boxHeight: 12 } },
+                    tooltip: TOOLTIP,
+                },
+            },
+        });
+
+        const byApp = data.by_app || [];
+        makeChart('aiAppChart', {
+            type: 'bar',
+            data: {
+                labels: byApp.map(r => r.app_name || 'Unknown'),
+                datasets: [{
+                    label: 'Calls',
+                    data: byApp.map(r => Number(r.calls) || 0),
+                    backgroundColor: byApp.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+                    borderRadius: 4,
+                    maxBarThickness: 24,
+                }],
+            },
+            options: baseChartOptions(),
+        });
+
+        const totalDays = data.days || days;
+        const flt = data.filters || {};
+        const calls = fillDaily(data.daily || [], totalDays, data.today, 'calls', flt.from, flt.to);
+        const cost  = fillDaily(data.daily || [], totalDays, data.today, 'cost', flt.from, flt.to);
+        makeChart('aiDailyChart', {
+            type: 'bar',
+            data: {
+                labels: calls.labels,
+                datasets: [
+                    { label: 'Calls', data: calls.values, backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 4, yAxisID: 'y' },
+                    { label: 'Cost ($)', type: 'line', data: cost.values, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.15)', fill: true, tension: 0.35, pointRadius: 2, pointBackgroundColor: '#f59e0b', yAxisID: 'y1' },
+                ],
+            },
+            options: baseChartOptions({
+                scales: {
+                    x: { ticks: { color: CHART_TEXT, maxRotation: 45, autoSkip: true }, grid: { color: CHART_GRID } },
+                    y: { beginAtZero: true, ticks: { color: CHART_TEXT, precision: 0 }, grid: { color: CHART_GRID } },
+                    y1: { beginAtZero: true, position: 'right', ticks: { color: CHART_TEXT, precision: 4 }, grid: { drawOnChartArea: false } },
+                },
+            }, true),
         });
     }
 
@@ -76,7 +347,7 @@ const NexaOps = (() => {
 
     // ── Dashboard ────────────────────────────────────────────
     async function loadDashboard() {
-        const data = await api('/dashboard/overview');
+        const data = await api('/dashboard/overview?days=' + days + '&' + filterQueryString('dash'));
         if (!data) return;
 
         document.getElementById('statusDot').style.background = '#22c55e';
@@ -88,6 +359,14 @@ const NexaOps = (() => {
         setText('statAICalls',   fmt(t.ai_calls_7d || 0));
         setText('statAICost',    '$' + (t.ai_cost_7d || 0).toFixed(2));
         setText('statUsers',     t.active_users || 0);
+
+        const dLabel = rangeLabel(data);
+        setText('statLogsLabel',    'Logs ' + dLabel);
+        setText('statAICallsLabel', 'AI Calls ' + dLabel);
+        setText('statAICostLabel',  'AI Cost ' + dLabel);
+        setText('appActivityTitle', dLabel);
+        setText('topActionsTitle',  dLabel);
+        setText('dailyLogsTitle',   dLabel);
 
         const tbody = document.querySelector('#appStatsTable tbody');
         tbody.innerHTML = '';
@@ -110,6 +389,7 @@ const NexaOps = (() => {
             </div>`;
         });
 
+        renderDashboardCharts(data);
         renderLogFeed('liveFeed', data.recent_logs || []);
     }
 
@@ -422,7 +702,7 @@ const NexaOps = (() => {
 
     // ── AI Usage ─────────────────────────────────────────────
     async function loadAI() {
-        const data = await api('/ai/global?days=7');
+        const data = await api('/ai/global?days=' + days + '&' + filterQueryString('ai'));
         if (!data) return;
 
         const t = data.totals || {};
@@ -430,6 +710,7 @@ const NexaOps = (() => {
         setText('aiStatTokens',  fmt(t.total_tokens || 0));
         setText('aiStatCost', '$' + (Number(t.total_cost) || 0).toFixed(4));
         setText('aiStatLatency', Math.round(Number(t.avg_latency) || 0) + 'ms');
+        setText('aiDailyTitle', rangeLabel(data));
 
         const provDiv = document.getElementById('aiByProvider');
         provDiv.innerHTML = '';
@@ -450,25 +731,7 @@ const NexaOps = (() => {
             </div>`;
         });
 
-        const chartDiv = document.getElementById('aiDailyChart');
-        chartDiv.innerHTML = '';
-        const daily = data.daily || [];
-        if (daily.length === 0) {
-            chartDiv.innerHTML = '<p style="color:var(--text-dim)">No AI usage data in the past 7 days.</p>';
-            return;
-        }
-        const maxCalls = Math.max(...daily.map(d => d.calls), 1);
-        daily.forEach(d => {
-            const pct = Math.round((d.calls / maxCalls) * 100);
-            chartDiv.innerHTML += `<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-                <span style="width:80px;font-size:0.8rem;color:var(--text-dim)">${d.day}</span>
-                <div style="flex:1;background:var(--bg-dark);border-radius:4px;height:24px;overflow:hidden">
-                    <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:4px;transition:width 0.5s"></div>
-                </div>
-                <span style="width:60px;text-align:right;font-size:0.8rem;font-weight:600">${fmt(d.calls)}</span>
-                <span style="width:60px;text-align:right;font-size:0.75rem;color:var(--text-dim)">$${(d.cost || 0).toFixed(3)}</span>
-            </div>`;
-        });
+        renderAICharts(data);
     }
 
     // ── Sync ─────────────────────────────────────────────────
@@ -594,7 +857,8 @@ requests.post("${endpoint}/api/collect/ai-usage",
     document.addEventListener('DOMContentLoaded', init);
 
     return {
-        refresh, syncLogs, searchLogs, switchView,
+        refresh, syncLogs, searchLogs, switchView, setRange,
+        applyFilters, clearFilters, onCompanyChange,
         loadRecentLogs: () => api('/logs/recent?limit=30').then(d => renderLogFeed('liveFeed', d?.logs || [])),
         nextPage, prevPage,
         // Companies

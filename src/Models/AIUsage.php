@@ -92,17 +92,38 @@ class AIUsage
     /**
      * Global AI usage across all apps.
      */
-    public function globalStats(int $days = 7): array
+    public function globalStats(int $days = 7, int $companyId = 0, int $appId = 0, ?string $from = null, ?string $to = null): array
     {
-        $from = date('Y-m-d', strtotime("-{$days} days"));
+        $timeConds  = [];
+        $timeParams = [];
+        if ($from) {
+            $timeConds[] = 'u.created_at >= ?';
+            $timeParams[] = $from . ' 00:00:00';
+        } else {
+            $timeConds[] = 'u.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)';
+            $timeParams[] = $days;
+        }
+        if ($to) {
+            $timeConds[] = 'u.created_at <= ?';
+            $timeParams[] = $to . ' 23:59:59';
+        }
+
+        $extraConds  = [];
+        $extraParams = [];
+        if ($companyId) { $extraConds[] = 'a.company_id = ?'; $extraParams[] = $companyId; }
+        if ($appId)     { $extraConds[] = 'u.app_id = ?';     $extraParams[] = $appId; }
+
+        $where = implode(' AND ', array_merge($timeConds, $extraConds));
+        $params = array_merge($timeParams, $extraParams);
+        $join  = $companyId ? ' LEFT JOIN apps a ON a.id = u.app_id' : '';
 
         $totals = $this->db->fetch(
             "SELECT COUNT(*) as total_calls,
                     COALESCE(SUM(tokens_used),0) as total_tokens,
                     COALESCE(SUM(cost_usd),0) as total_cost,
                     COALESCE(AVG(latency_ms),0) as avg_latency
-             FROM ai_usage WHERE created_at >= ?",
-            [$from]
+             FROM ai_usage u{$join} WHERE {$where}",
+            $params
         );
         $totals['total_calls'] = (int)$totals['total_calls'];
         $totals['total_tokens'] = (float)$totals['total_tokens'];
@@ -114,23 +135,23 @@ class AIUsage
                     COUNT(*) as calls, SUM(u.tokens_used) as tokens, SUM(u.cost_usd) as cost
              FROM ai_usage u
              LEFT JOIN apps a ON a.id = u.app_id
-             WHERE u.created_at >= ?
+             WHERE {$where}
              GROUP BY u.app_id, a.name ORDER BY calls DESC",
-            [$from]
+            $params
         );
 
         $byProvider = $this->db->fetchAll(
-            "SELECT provider, COUNT(*) as calls, SUM(tokens_used) as tokens, SUM(cost_usd) as cost
-             FROM ai_usage WHERE created_at >= ?
-             GROUP BY provider ORDER BY calls DESC",
-            [$from]
+            "SELECT u.provider, COUNT(*) as calls, SUM(u.tokens_used) as tokens, SUM(u.cost_usd) as cost
+             FROM ai_usage u{$join} WHERE {$where}
+             GROUP BY u.provider ORDER BY calls DESC",
+            $params
         );
 
         $daily = $this->db->fetchAll(
-            "SELECT DATE(created_at) as day, COUNT(*) as calls, SUM(tokens_used) as tokens, SUM(cost_usd) as cost
-             FROM ai_usage WHERE created_at >= ?
-             GROUP BY DATE(created_at) ORDER BY day",
-            [$from]
+            "SELECT DATE(u.created_at) as day, COUNT(*) as calls, SUM(u.tokens_used) as tokens, SUM(u.cost_usd) as cost
+             FROM ai_usage u{$join} WHERE {$where}
+             GROUP BY DATE(u.created_at) ORDER BY day",
+            $params
         );
 
         return [

@@ -24,6 +24,7 @@ class LogService
         if ($param === 'search') {
             $filters = [
                 'app_id'    => $_GET['app_id'] ?? null,
+                'company_id' => $_GET['company_id'] ?? null,
                 'action'    => $_GET['action'] ?? null,
                 'user_id'   => $_GET['user_id'] ?? null,
                 'level'     => $_GET['level'] ?? null,

@@ -97,7 +97,9 @@ class Log
         );
 
         $countRow = $this->db->fetch(
-            "SELECT COUNT(*) as total FROM app_logs l WHERE {$whereClause}",
+            "SELECT COUNT(*) as total FROM app_logs l
+             LEFT JOIN apps a ON a.id = l.app_id
+             WHERE {$whereClause}",
             $params
         );
 
@@ -105,20 +107,47 @@ class Log
     }
 
     /**
+     * Build the time-window WHERE fragment (alias-aware).
+     */
+    private function timeWhere(int $days, ?string $from, ?string $to, string $alias): array
+    {
+        $conds  = [];
+        $params = [];
+        if ($from) {
+            $conds[] = "{$alias}created_at >= ?";
+            $params[] = $from . ' 00:00:00';
+        } else {
+            $conds[] = "{$alias}created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)";
+            $params[] = $days;
+        }
+        if ($to) {
+            $conds[] = "{$alias}created_at <= ?";
+            $params[] = $to . ' 23:59:59';
+        }
+        return ['sql' => implode(' AND ', $conds), 'params' => $params];
+    }
+
+    /**
      * Get log stats per app for the dashboard.
      */
-    public function statsByApp(int $days = 7): array
+    public function statsByApp(int $days = 7, int $companyId = 0, int $appId = 0, ?string $from = null, ?string $to = null): array
     {
+        $tw = $this->timeWhere($days, $from, $to, 'l.');
+        $appWhere = '';
+        $appParams = [];
+        if ($companyId) { $appWhere .= ' AND a.company_id = ?'; $appParams[] = $companyId; }
+        if ($appId)     { $appWhere .= ' AND a.id = ?';         $appParams[] = $appId; }
+
         return $this->db->fetchAll(
             "SELECT a.id, a.name, COUNT(l.id) as log_count,
                     COUNT(DISTINCT l.user_id) as unique_users,
                     COUNT(DISTINCT l.action) as unique_actions
              FROM apps a
-             LEFT JOIN app_logs l ON l.app_id = a.id AND l.created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
-             WHERE a.deleted_at IS NULL
+             LEFT JOIN app_logs l ON l.app_id = a.id AND {$tw['sql']}
+             WHERE a.deleted_at IS NULL{$appWhere}
              GROUP BY a.id, a.name
              ORDER BY log_count DESC",
-            [$days]
+            array_merge($tw['params'], $appParams)
         );
     }
 
@@ -143,32 +172,99 @@ class Log
     /**
      * Most common actions across all apps.
      */
-    public function topActions(int $limit = 15): array
+    public function topActions(int $limit = 15, int $days = 7, int $companyId = 0, int $appId = 0, ?string $from = null, ?string $to = null): array
     {
-        $limit = (int) $limit;
+        $limit = max(1, (int) $limit);
+        $days  = max(1, (int) $days);
+
+        $tw = $this->timeWhere($days, $from, $to, 'l.');
+        $conds  = [$tw['sql']];
+        $params = $tw['params'];
+        if ($companyId) { $conds[] = 'a.company_id = ?'; $params[] = $companyId; }
+        if ($appId)     { $conds[] = 'l.app_id = ?';     $params[] = $appId; }
+
         return $this->db->fetchAll(
             "SELECT l.action, a.name as app_name, COUNT(*) as cnt
              FROM app_logs l
              LEFT JOIN apps a ON a.id = l.app_id
-             WHERE l.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             WHERE " . implode(' AND ', $conds) . "
              GROUP BY l.action, a.name
              ORDER BY cnt DESC
-             LIMIT {$limit}"
+             LIMIT {$limit}",
+            $params
         );
+    }
+
+    /**
+     * Daily log counts for the last N days (used for trend charts).
+     */
+    public function dailyTrend(int $days = 7, int $companyId = 0, int $appId = 0, ?string $from = null, ?string $to = null): array
+    {
+        $days = max(1, (int) $days);
+
+        $tw = $this->timeWhere($days, $from, $to, 'l.');
+        $conds  = [$tw['sql']];
+        $params = $tw['params'];
+        if ($companyId) { $conds[] = 'a.company_id = ?'; $params[] = $companyId; }
+        if ($appId)     { $conds[] = 'l.app_id = ?';     $params[] = $appId; }
+
+        return $this->db->fetchAll(
+            "SELECT DATE(l.created_at) as day, COUNT(*) as cnt
+             FROM app_logs l
+             LEFT JOIN apps a ON a.id = l.app_id
+             WHERE " . implode(' AND ', $conds) . "
+             GROUP BY DATE(l.created_at)
+             ORDER BY day",
+            $params
+        );
+    }
+
+    /**
+     * Count logs + active users within a window (used for dashboard totals).
+     */
+    public function counts(int $days = 7, int $companyId = 0, int $appId = 0, ?string $from = null, ?string $to = null): array
+    {
+        $days = max(1, (int) $days);
+
+        $tw = $this->timeWhere($days, $from, $to, 'l.');
+        $conds  = [$tw['sql']];
+        $params = $tw['params'];
+        if ($companyId) { $conds[] = 'a.company_id = ?'; $params[] = $companyId; }
+        if ($appId)     { $conds[] = 'l.app_id = ?';     $params[] = $appId; }
+
+        $row = $this->db->fetch(
+            "SELECT COUNT(*) as total, COUNT(DISTINCT l.user_id) as active_users
+             FROM app_logs l
+             LEFT JOIN apps a ON a.id = l.app_id
+             WHERE " . implode(' AND ', $conds),
+            $params
+        );
+        return [
+            'logs'         => (int)($row['total'] ?? 0),
+            'active_users' => (int)($row['active_users'] ?? 0),
+        ];
     }
 
     /**
      * Recent logs for the live feed.
      */
-    public function recent(int $limit = 50): array
+    public function recent(int $limit = 50, int $companyId = 0, int $appId = 0): array
     {
         $limit = (int) $limit;
+        $conds  = [];
+        $params = [];
+        if ($companyId) { $conds[] = 'a.company_id = ?'; $params[] = $companyId; }
+        if ($appId)     { $conds[] = 'l.app_id = ?';     $params[] = $appId; }
+        $where = $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
+
         return $this->db->fetchAll(
             "SELECT l.*, a.name AS app_name
              FROM app_logs l
              LEFT JOIN apps a ON a.id = l.app_id
+             {$where}
              ORDER BY l.created_at DESC
-             LIMIT {$limit}"
+             LIMIT {$limit}",
+            $params
         );
     }
 }
