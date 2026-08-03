@@ -67,13 +67,20 @@ class CollectService
     private function ingestAIUsage(): void
     {
         $payload = json_decode(file_get_contents('php://input'), true);
-        if (!$payload || empty($payload['app_id'])) {
-            Response::error('app_id is required');
+        if (!$payload) {
+            Response::error('Invalid JSON payload');
+            return;
+        }
+
+        $apiKey = $_SERVER['HTTP_X_API_KEY'] ?? ($payload['api_key'] ?? '');
+        $app = $this->resolveApp($apiKey, $payload['app_id'] ?? null);
+        if (!$app) {
+            Response::error('Unknown app. Provide valid api_key or app_id.', 401);
             return;
         }
 
         $this->db->insert('ai_usage', [
-            'app_id'            => $payload['app_id'],
+            'app_id'            => $app['id'],
             'provider'          => $payload['provider'] ?? 'openai',
             'model'             => $payload['model'] ?? 'unknown',
             'operation'         => $payload['operation'] ?? 'chat',
