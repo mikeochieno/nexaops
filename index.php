@@ -30,7 +30,7 @@ function assetUrl(string $path): string
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($config['name']) ?></title>
     <link rel="stylesheet" href="<?= assetUrl('assets/css/dashboard.css') ?>">
-    <link rel="stylesheet" href="<?= assetUrl('assets/vendor/fontawesome/all.min.css') ?>">
+    <link rel="stylesheet" href="<?= assetUrl('assets/vendor/fontawesome/css/all.min.css') ?>">
     <script defer src="<?= assetUrl('assets/vendor/chartjs/chart.umd.min.js') ?>"></script>
 </head>
 <body>
