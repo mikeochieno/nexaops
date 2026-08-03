@@ -53,9 +53,6 @@ function assetUrl(string $path): string
             <a href="#" class="nav-item" data-view="logs">
                 <i class="fas fa-scroll"></i><span>Activity Logs</span>
             </a>
-            <a href="#" class="nav-item" data-view="ai">
-                <i class="fas fa-brain"></i><span>AI Usage</span>
-            </a>
             <a href="#" class="nav-item" data-view="integrations">
                 <i class="fas fa-plug"></i><span>Integrations</span>
             </a>
@@ -131,20 +128,6 @@ function assetUrl(string $path): string
                         <div class="stat-body">
                             <span class="stat-value" id="statLogs">—</span>
                             <span class="stat-label" id="statLogsLabel">Logs (7d)</span>
-                        </div>
-                    </div>
-                    <div class="stat-card" onclick="NexaOps.switchView('ai')" style="cursor:pointer">
-                        <div class="stat-icon purple"><i class="fas fa-brain"></i></div>
-                        <div class="stat-body">
-                            <span class="stat-value" id="statAICalls">—</span>
-                            <span class="stat-label" id="statAICallsLabel">AI Calls (7d)</span>
-                        </div>
-                    </div>
-                    <div class="stat-card" onclick="NexaOps.switchView('ai')" style="cursor:pointer">
-                        <div class="stat-icon red"><i class="fas fa-coins"></i></div>
-                        <div class="stat-body">
-                            <span class="stat-value" id="statAICost">—</span>
-                            <span class="stat-label" id="statAICostLabel">AI Cost (7d)</span>
                         </div>
                     </div>
                     <div class="stat-card" onclick="NexaOps.switchView('logs')" style="cursor:pointer">
@@ -265,94 +248,6 @@ function assetUrl(string $path): string
                         <div class="log-feed" id="logsFeed"></div>
                         <div class="pagination" id="logsPagination"></div>
                     </div>
-                </div>
-            </section>
-
-            <!-- ═══ AI Usage View ═══ -->
-            <section class="view" id="view-ai">
-                <div class="card full-width" style="margin-bottom:12px;border-color:var(--accent-glow)">
-                    <div class="card-body" style="padding:12px 20px;font-size:0.85rem;color:var(--text-dim)">
-                        <i class="fas fa-info-circle" style="color:var(--accent)"></i>
-                        AI Usage tracks LLM API calls (tokens, costs, latency) <strong>across all apps</strong>
-                        — not just "AI apps". Any app that makes AI/LLM calls and reports them here will
-                        appear in these stats. Think of it as a cross-cutting observability layer, separate
-                        from any specific AI application.
-                    </div>
-                </div>
-                <!-- Time range selector -->
-                <div class="range-bar">
-                    <span class="range-label"><i class="fas fa-clock"></i> Time Range:</span>
-                    <button class="btn btn-xs range-btn active" data-days="7">7D</button>
-                    <button class="btn btn-xs range-btn" data-days="30">30D</button>
-                    <button class="btn btn-xs range-btn" data-days="90">90D</button>
-                </div>
-                <!-- Filter bar -->
-                <div class="filter-bar">
-                    <span class="range-label"><i class="fas fa-filter"></i> Filters:</span>
-                    <select id="aiCompanyFilter" class="input-sm" onchange="NexaOps.onCompanyChange('ai')">
-                        <option value="">All Companies</option>
-                    </select>
-                    <select id="aiAppFilter" class="input-sm"><option value="">All Apps</option></select>
-                    <input type="date" id="aiDateFrom" class="input-sm" title="From date">
-                    <input type="date" id="aiDateTo" class="input-sm" title="To date">
-                    <button class="btn btn-xs" onclick="NexaOps.applyFilters('ai')">
-                        <i class="fas fa-check"></i> Apply
-                    </button>
-                    <button class="btn btn-xs" onclick="NexaOps.clearFilters('ai')">
-                        <i class="fas fa-times"></i> Clear
-                    </button>
-                </div>
-                <div class="stats-grid" id="aiStatsGrid">
-                    <div class="stat-card">
-                        <div class="stat-icon purple"><i class="fas fa-phone"></i></div>
-                        <div class="stat-body">
-                            <span class="stat-value" id="aiStatCalls">—</span>
-                            <span class="stat-label">Total Calls</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon blue"><i class="fas fa-microchip"></i></div>
-                        <div class="stat-body">
-                            <span class="stat-value" id="aiStatTokens">—</span>
-                            <span class="stat-label">Tokens Used</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon red"><i class="fas fa-dollar-sign"></i></div>
-                        <div class="stat-body">
-                            <span class="stat-value" id="aiStatCost">—</span>
-                            <span class="stat-label">Total Cost</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon green"><i class="fas fa-tachometer-alt"></i></div>
-                        <div class="stat-body">
-                            <span class="stat-value" id="aiStatLatency">—</span>
-                            <span class="stat-label">Avg Latency</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-grid">
-                    <div class="card">
-                        <div class="card-header"><h3><i class="fas fa-server"></i> By Provider</h3></div>
-                        <div class="card-body">
-                            <div class="chart-box"><canvas id="aiProviderChart"></canvas></div>
-                            <div id="aiByProvider"></div>
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-header"><h3><i class="fas fa-cube"></i> By App</h3></div>
-                        <div class="card-body">
-                            <div class="chart-box"><canvas id="aiAppChart"></canvas></div>
-                            <div id="aiByApp"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card full-width">
-                    <div class="card-header"><h3><i class="fas fa-chart-area"></i> Daily AI Usage <span id="aiDailyTitle">(7d)</span></h3></div>
-                    <div class="card-body"><div class="chart-box"><canvas id="aiDailyChart"></canvas></div></div>
                 </div>
             </section>
 

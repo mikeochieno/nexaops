@@ -78,8 +78,6 @@ const NexaOps = (() => {
         await loadFilterOptions();
         fillCompanySelect('dash');
         fillAppSelect('dash');
-        fillCompanySelect('ai');
-        fillAppSelect('ai');
     }
 
     function onCompanyChange(prefix) {
@@ -229,67 +227,6 @@ const NexaOps = (() => {
         });
     }
 
-    function renderAICharts(data) {
-        const byProvider = data.by_provider || [];
-        makeChart('aiProviderChart', {
-            type: 'doughnut',
-            data: {
-                labels: byProvider.map(r => r.provider),
-                datasets: [{
-                    data: byProvider.map(r => Number(r.calls) || 0),
-                    backgroundColor: byProvider.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
-                    borderWidth: 0,
-                }],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { color: CHART_TEXT, boxWidth: 12, boxHeight: 12 } },
-                    tooltip: TOOLTIP,
-                },
-            },
-        });
-
-        const byApp = data.by_app || [];
-        makeChart('aiAppChart', {
-            type: 'bar',
-            data: {
-                labels: byApp.map(r => r.app_name || 'Unknown'),
-                datasets: [{
-                    label: 'Calls',
-                    data: byApp.map(r => Number(r.calls) || 0),
-                    backgroundColor: byApp.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
-                    borderRadius: 4,
-                    maxBarThickness: 24,
-                }],
-            },
-            options: baseChartOptions(),
-        });
-
-        const totalDays = data.days || days;
-        const flt = data.filters || {};
-        const calls = fillDaily(data.daily || [], totalDays, data.today, 'calls', flt.from, flt.to);
-        const cost  = fillDaily(data.daily || [], totalDays, data.today, 'cost', flt.from, flt.to);
-        makeChart('aiDailyChart', {
-            type: 'bar',
-            data: {
-                labels: calls.labels,
-                datasets: [
-                    { label: 'Calls', data: calls.values, backgroundColor: 'rgba(99,102,241,0.7)', borderRadius: 4, yAxisID: 'y' },
-                    { label: 'Cost ($)', type: 'line', data: cost.values, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.15)', fill: true, tension: 0.35, pointRadius: 2, pointBackgroundColor: '#f59e0b', yAxisID: 'y1' },
-                ],
-            },
-            options: baseChartOptions({
-                scales: {
-                    x: { ticks: { color: CHART_TEXT, maxRotation: 45, autoSkip: true }, grid: { color: CHART_GRID } },
-                    y: { beginAtZero: true, ticks: { color: CHART_TEXT, precision: 0 }, grid: { color: CHART_GRID } },
-                    y1: { beginAtZero: true, position: 'right', ticks: { color: CHART_TEXT, precision: 4 }, grid: { drawOnChartArea: false } },
-                },
-            }, true),
-        });
-    }
-
     function switchView(view) {
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.querySelector(`.nav-item[data-view="${view}"]`)?.classList.add('active');
@@ -311,7 +248,6 @@ const NexaOps = (() => {
             case 'companies':    loadCompanies(); break;
             case 'apps':         loadApps(); break;
             case 'logs':         loadLogs(); break;
-            case 'ai':           loadAI(); break;
             case 'integrations': loadIntegrations(); break;
         }
     }
@@ -356,14 +292,10 @@ const NexaOps = (() => {
         setText('statApps',      t.apps || 0);
         setText('statCompanies', t.companies || 0);
         setText('statLogs',      fmt(t.logs_7d || 0));
-        setText('statAICalls',   fmt(t.ai_calls_7d || 0));
-        setText('statAICost',    '$' + (t.ai_cost_7d || 0).toFixed(2));
         setText('statUsers',     t.active_users || 0);
 
         const dLabel = rangeLabel(data);
         setText('statLogsLabel',    'Logs ' + dLabel);
-        setText('statAICallsLabel', 'AI Calls ' + dLabel);
-        setText('statAICostLabel',  'AI Cost ' + dLabel);
         setText('appActivityTitle', dLabel);
         setText('topActionsTitle',  dLabel);
         setText('dailyLogsTitle',   dLabel);
@@ -700,40 +632,6 @@ const NexaOps = (() => {
     function nextPage() { logsOffset += 100; searchLogs(); }
     function prevPage() { logsOffset = Math.max(0, logsOffset - 100); searchLogs(); }
 
-    // ── AI Usage ─────────────────────────────────────────────
-    async function loadAI() {
-        const data = await api('/ai/global?days=' + days + '&' + filterQueryString('ai'));
-        if (!data) return;
-
-        const t = data.totals || {};
-        setText('aiStatCalls',   fmt(t.total_calls || 0));
-        setText('aiStatTokens',  fmt(t.total_tokens || 0));
-        setText('aiStatCost', '$' + (Number(t.total_cost) || 0).toFixed(4));
-        setText('aiStatLatency', Math.round(Number(t.avg_latency) || 0) + 'ms');
-        setText('aiDailyTitle', rangeLabel(data));
-
-        const provDiv = document.getElementById('aiByProvider');
-        provDiv.innerHTML = '';
-        (data.by_provider || []).forEach(row => {
-            provDiv.innerHTML += `<div class="action-bar">
-                <span class="action-name">${esc(row.provider)}</span>
-                <span class="action-count">${fmt(row.calls)} calls</span>
-            </div>`;
-        });
-
-        const appDiv = document.getElementById('aiByApp');
-        appDiv.innerHTML = '';
-        (data.by_app || []).forEach(row => {
-            appDiv.innerHTML += `<div class="action-bar">
-                <span class="action-name">${esc(row.app_name || 'Unknown')}</span>
-                <span style="color:var(--text-dim);font-size:0.8rem">${fmt(row.tokens)} tokens</span>
-                <span class="action-count">${fmt(row.calls)}</span>
-            </div>`;
-        });
-
-        renderAICharts(data);
-    }
-
     // ── Sync ─────────────────────────────────────────────────
     async function syncLogs() {
         const data = await api('/collect/sync');
@@ -867,7 +765,6 @@ requests.post("${endpoint}/api/collect/ai-usage",
         showAppForm, saveApp, viewApp, backToApps,
         // Logs
         loadLogs: () => { logsOffset = 0; populateCompanyFilter('logCompanyFilter', ''); searchLogs(); },
-        loadAI,
         // Modals
         openModal, closeModal, confirmDelete,
     };
